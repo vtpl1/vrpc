@@ -99,9 +99,7 @@ def reset_version():
     log("version: {}".format(FLAGS.version))
 
 
-def bump_to_version(minor: bool = False,
-                    major: bool = False,
-                    reset: bool = False):
+def bump_to_version(minor: bool = False, major: bool = False, reset: bool = False):
     runarguments = ["bump2version", "--allow-dirty"]
     if reset:
         reset_version()
@@ -128,18 +126,18 @@ def remove_file_or_dir(inp_path, recursive=False):
     """param <path> could either be relative or absolute."""
     path = str(pathlib.Path(inp_path).absolute())
     if os.path.isfile(path) or os.path.islink(path):
-        os.remove(path)  # remove the file
+        os.remove(path)    # remove the file
     elif os.path.isdir(path):
-        shutil.rmtree(path)  # remove dir and all contains
+        shutil.rmtree(path)    # remove dir and all contains
     else:
         glob_list = glob.glob(path, recursive=recursive)
         if len(glob_list) > 0:
             for name in glob_list:
                 log_verbose(name)
                 if os.path.isfile(name) or os.path.islink(name):
-                    os.remove(name)  # remove the file
+                    os.remove(name)    # remove the file
                 elif os.path.isdir(name):
-                    shutil.rmtree(name)  # remove dir and all contains
+                    shutil.rmtree(name)    # remove dir and all contains
 
 
 def remove_cythonize():
@@ -169,10 +167,7 @@ def clean_cythonize():
 
 def zip_dir(dir_name, filename):
     """zipper"""
-    with zipfile.ZipFile(filename,
-                         "w",
-                         compression=zipfile.ZIP_DEFLATED,
-                         allowZip64=True) as zip:
+    with zipfile.ZipFile(filename, "w", compression=zipfile.ZIP_DEFLATED, allowZip64=True) as zip:
         for root, _, files in os.walk(dir_name):
             for f in files:
                 rel_path = os.path.join(os.path.relpath(root, dir_name), f)
@@ -190,14 +185,12 @@ def wheel_remove_source_files():
             with zipfile.ZipFile(filename) as zip:
                 zip.extractall(path=dir_name)
 
-            file_list = glob.glob(os.path.join(dir_name, "**/*.py"),
-                                  recursive=True)
-            file_list.extend(
-                glob.glob(os.path.join(dir_name, "**/*.c"), recursive=True))
+            file_list = glob.glob(os.path.join(dir_name, "**/*.py"), recursive=True)
+            file_list.extend(glob.glob(os.path.join(dir_name, "**/*.c"), recursive=True))
             for filename1 in file_list:
                 if not filename1.endswith("__init__.py"):
                     if os.path.isfile(filename1) or os.path.islink(filename1):
-                        os.remove(filename1)  # remove the file
+                        os.remove(filename1)    # remove the file
             zip_dir(dir_name, filename)
             shutil.rmtree(dir_name)
 
@@ -211,9 +204,7 @@ def do_cythonize():
     clean_cythonize()
     remove_cythonize()
     # runarguments = [sys.executable, 'setup.py', 'bdist_wheel', '--exclude_source_files']
-    runarguments = [
-        sys.executable, "setup.py", "bdist_wheel", "-d", FLAGS.dist_dir
-    ]
+    runarguments = [sys.executable, "setup.py", "bdist_wheel", "-d", FLAGS.dist_dir]
     try:
         p = subprocess.Popen(runarguments, cwd=FLAGS.cwd)
         p.wait()
@@ -296,9 +287,7 @@ def generate_proto_code1():
     out_folder = "vrpc/data_models"
     proto_it = pathlib.Path().glob(proto_interface_dir + "/**/*")
     protos = [str(proto) for proto in proto_it if proto.is_file()]
-    subprocess.check_call(
-        ["protoc"] + protos +
-        ["--python_out", out_folder, "--proto_path", proto_interface_dir])
+    subprocess.check_call(["protoc"] + protos + ["--python_out", out_folder, "--proto_path", proto_interface_dir])
 
 
 def generate_proto_code():
@@ -306,10 +295,8 @@ def generate_proto_code():
     out_folder = "vrpc/data_models"
     proto_it = pathlib.Path().glob(proto_interface_dir + "/**/*")
     protos = [str(proto) for proto in proto_it if proto.is_file()]
-    subprocess.check_call(["protoc"] + protos + [
-        "--python_betterproto_out", out_folder, "--proto_path",
-        proto_interface_dir
-    ])
+    subprocess.check_call(["protoc"] + protos +
+                          ["--python_betterproto_out", out_folder, "--proto_path", proto_interface_dir])
 
 
 def generate_proto_code2():
@@ -317,10 +304,8 @@ def generate_proto_code2():
     out_folder = "vrpc/data_models"
     proto_it = pathlib.Path().glob(proto_interface_dir + "/**/*")
     protos = [str(proto) for proto in proto_it if proto.is_file()]
-    subprocess.check_call(["python", "-m", "grpc.tools.protoc"] + protos + [
-        "--python_betterproto_out", out_folder, "--proto_path",
-        proto_interface_dir
-    ])
+    subprocess.check_call(["python", "-m", "grpc.tools.protoc"] + protos +
+                          ["--python_betterproto_out", out_folder, "--proto_path", proto_interface_dir])
 
 
 if __name__ == "__main__":
@@ -342,10 +327,7 @@ if __name__ == "__main__":
         help="Enable verbose output.",
     )
 
-    parser.add_argument("--enable-logging",
-                        action="store_true",
-                        required=False,
-                        help="Enable logging.")
+    parser.add_argument("--enable-logging", action="store_true", required=False, help="Enable logging.")
     parser.add_argument(
         "--enable-stats",
         action="store_true",
@@ -368,6 +350,6 @@ if __name__ == "__main__":
     # do_format_black()
     do_format_yapf()
     # run_module()
-    # do_mypy_test()
+    do_mypy_test()
     # bump_to_version()
-    # do_cythonize()
+    do_cythonize()
