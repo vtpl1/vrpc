@@ -1,0 +1,16 @@
+black
+bump2version
+cmake
+flake8
+mypy
+pylint
+pytest
+sphinx
+sphinx-rtd-theme
+mkdocs
+rope
+tox
+yapf
+isort
+pycln
+pytest-monitor
