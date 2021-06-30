@@ -5,14 +5,12 @@ import logging.config
 import os
 import shutil
 import signal
-import sys
 import threading
 
 import ruamel.yaml
 
-from vrpc.consumer import Consumer
-from vrpc.producer import Producer
-
+from .consumer import Consumer
+from .producer import Producer
 from .utils import get_generated_engines_folder, get_session_folder
 
 
@@ -76,8 +74,8 @@ def main():
         global is_shutdown
         parser = init_argparser()
         args = parser.parse_args()
-        o_producer = Producer()
-        o_consumer = Consumer()
+        o_consumer = Consumer().start()
+        o_producer = Producer().start()
         while not is_shutdown.wait(10.0):
             continue
     except Exception as e:

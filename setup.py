@@ -2,7 +2,6 @@
 import codecs
 import glob
 import os
-import pathlib
 
 # the below order is important from setuptools import find_packages, setup then from Cython.Build import cythonize
 from setuptools import find_packages, setup    # isort:skip

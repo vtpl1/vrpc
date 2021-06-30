@@ -16,7 +16,6 @@ import time
 import traceback
 import zipfile
 from distutils.dir_util import copy_tree
-from typing import Dict
 
 
 def get_cwd() -> str:
@@ -350,6 +349,6 @@ if __name__ == "__main__":
     # do_format_black()
     do_format_yapf()
     # run_module()
-    do_mypy_test()
+    # do_mypy_test()
     # bump_to_version()
-    do_cythonize()
+    # do_cythonize()
