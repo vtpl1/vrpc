@@ -4,11 +4,11 @@ import os
 import struct
 import threading
 import cv2
-
+import numpy as np
 from .data_models.function_pkg import FunctionTypes, FunctionTypesEnum
 from .data_models.opencv import OcvMat
 from .data_models.person_pkg import Friend, Person, PersonInfo, Sex
-from .utils import get_folder
+from .utils import get_folder, get_session_folder
 
 LOGGER = logging.getLogger("consumer")
 
@@ -50,7 +50,11 @@ class Consumer(threading.Thread):
                                                 l = len(b)
                                                 print(f"Read size 3----------- {l}")
                                                 ocvmat = OcvMat().parse(b)
-                                                mat = cv2.
+                                                mat = np.frombuffer(ocvmat.mat_data, dtype=np.uint8).reshape(ocvmat.rows, ocvmat.cols, 3)
+                                                print(mat)
+                                                file_name1 = f"{get_session_folder()}{count:05d}.jpg"
+                                                print(f"File name {file_name1}")
+                                                cv2.imwrite(file_name1, mat)
                                             #LOGGER.info(f"Read --- {count} {f.tell()} {person.to_dict()}")
                                     elif function_types.function_types == FunctionTypesEnum.Stop:
                                         break
