@@ -7,5 +7,5 @@ message OcvMat {
     int32 cols = 2;
     int32 mat_data_type = 3;
     int32 mat_data_size = 4;
-    // bytes mat_data = 5;
+    bytes mat_data = 5;
 }

@@ -1,2 +1,4 @@
 betterproto[compiler]
 ruamel.yaml
+opencv-python
+numpy

@@ -23,19 +23,16 @@ class Producer(threading.Thread):
         self.__file_count = 0
         self.__consumer_folder = f"{self.__consumer_id:05d}"
 
-    def start(self) -> "Producer":
-        super().start()
-        return self
-
     def run(self):
         count = 0
         LOGGER.info(f"Start")
-        folder_name = get_folder(f"proto_dump/{self.__consumer_folder}")
+        folder_name = get_folder(os.path.join("proto_dump", self.__consumer_folder))
         while not self.__is_shut_down.is_set():
             file_name = os.path.join(folder_name, f"{self.__channel_id:05d}_{self.__file_count:05d}.pb")
             with open(file_name, "ab") as f:
                 while not self.__is_shut_down.wait(3):
-                    mat = cv2.imread("images/1.png")
+                    image_name = os.path.join("images", "1.png")
+                    mat = cv2.imread(image_name)
                     count += 1
                     person = Person(info=PersonInfo(age=count, sex=Sex.M, height=160),
                                     friends=[Friend(friendship_duration=365, shared_hobbies=[f"{count}", "bb", "cc"])])
@@ -49,7 +46,7 @@ class Producer(threading.Thread):
                     f.write(b)
                     (height, width, data_size) = mat.shape
                     ocvmat = OcvMat(rows=height, cols=width, mat_data_type=1, mat_data_size=data_size)
-                    # ocvmat.mat_data = mat.data
+                    ocvmat.mat_data = bytes(mat.data)
                     b = bytes(ocvmat)
                     l = len(b)
                     print(f"Write size 1----------- {l}")

@@ -12,3 +12,4 @@ class OcvMat(betterproto.Message):
     cols: int = betterproto.int32_field(2)
     mat_data_type: int = betterproto.int32_field(3)
     mat_data_size: int = betterproto.int32_field(4)
+    mat_data: bytes = betterproto.bytes_field(5)

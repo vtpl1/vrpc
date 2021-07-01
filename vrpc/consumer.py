@@ -3,6 +3,7 @@ import logging
 import os
 import struct
 import threading
+import cv2
 
 from .data_models.function_pkg import FunctionTypes, FunctionTypesEnum
 from .data_models.opencv import OcvMat
@@ -20,14 +21,10 @@ class Consumer(threading.Thread):
         self.__consumer_id = consumer_id
         self.__consumer_folder = f"{self.__consumer_id:05d}"
 
-    def start(self) -> "Consumer":
-        super().start()
-        return self
-
     def run(self):
         count = 0
         LOGGER.info(f"Start")
-        folder_name = get_folder(f"proto_dump/{self.__consumer_folder}")
+        folder_name = get_folder(os.path.join("proto_dump", self.__consumer_folder))
         while not self.__is_shut_down.is_set():
             file_list = glob.glob(os.path.join(folder_name, "*.pb"))
             for file in file_list:
@@ -53,6 +50,7 @@ class Consumer(threading.Thread):
                                                 l = len(b)
                                                 print(f"Read size 3----------- {l}")
                                                 ocvmat = OcvMat().parse(b)
+                                                mat = cv2.
                                             #LOGGER.info(f"Read --- {count} {f.tell()} {person.to_dict()}")
                                     elif function_types.function_types == FunctionTypesEnum.Stop:
                                         break
@@ -62,7 +60,7 @@ class Consumer(threading.Thread):
                             except Exception as e:
                                 LOGGER.error(f"Read Exception {e} {type(e)}")
                     LOGGER.info(f"Deleting file {file}")
-                    # os.remove(file)
+                    os.remove(file)
                 except FileNotFoundError as e:
                     LOGGER.error(f"Read error {e}")
 
