@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package function_pkg;
+
+enum FunctionTypesEnum {
+    Finish = 0;     // Finish
+    Data = 1;       // Data
+    Start = 2;      // Start
+    Load = 3;       // Load
+    GetResult = 4;  // GetResult
+    Stop = 5;       // Stop
+}
+
+message FunctionTypes {
+    FunctionTypesEnum function_types = 1; 
+}

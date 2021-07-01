@@ -74,8 +74,8 @@ def main():
         global is_shutdown
         parser = init_argparser()
         args = parser.parse_args()
-        o_consumer = Consumer().start()
-        o_producer = Producer().start()
+        o_consumer = Consumer(12).start()
+        o_producer = Producer(0, 12).start()
         while not is_shutdown.wait(10.0):
             continue
     except Exception as e:
