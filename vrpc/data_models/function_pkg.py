@@ -7,12 +7,13 @@ import betterproto
 
 
 class FunctionTypesEnum(betterproto.Enum):
-    Finish = 0
-    Data = 1
-    Start = 2
-    Load = 3
-    GetResult = 4
-    Stop = 5
+    Unknown = 0
+    Finish = 1
+    Data = 2
+    Start = 3
+    Load = 4
+    GetResult = 5
+    Stop = 6
 
 
 @dataclass

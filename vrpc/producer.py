@@ -3,7 +3,10 @@ import os
 import struct
 import threading
 
+import cv2
+
 from .data_models.function_pkg import FunctionTypes, FunctionTypesEnum
+from .data_models.opencv import OcvMat
 from .data_models.person_pkg import Friend, Person, PersonInfo, Sex
 from .utils import get_folder
 
@@ -32,6 +35,7 @@ class Producer(threading.Thread):
             file_name = os.path.join(folder_name, f"{self.__channel_id:05d}_{self.__file_count:05d}.pb")
             with open(file_name, "ab") as f:
                 while not self.__is_shut_down.wait(3):
+                    mat = cv2.imread("images/1.png")
                     count += 1
                     person = Person(info=PersonInfo(age=count, sex=Sex.M, height=160),
                                     friends=[Friend(friendship_duration=365, shared_hobbies=[f"{count}", "bb", "cc"])])
@@ -42,6 +46,14 @@ class Producer(threading.Thread):
                     f.write(b)
                     b = bytes(person)
                     f.write(struct.pack("<i", len(b)))
+                    f.write(b)
+                    (height, width, data_size) = mat.shape
+                    ocvmat = OcvMat(rows=height, cols=width, mat_data_type=1, mat_data_size=data_size)
+                    # ocvmat.mat_data = mat.data
+                    b = bytes(ocvmat)
+                    l = len(b)
+                    print(f"Write size 1----------- {l}")
+                    f.write(struct.pack("<i", l))
                     f.write(b)
                     f.flush()
 

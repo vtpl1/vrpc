@@ -17,6 +17,8 @@ RUN wget https://github.com/protocolbuffers/protobuf/releases/download/v3.17.3/p
 
 RUN pip install "betterproto[compiler]"
 RUN pip install ruamel.yaml
+RUN pip install opencv-python numpy
+RUN DEBIAN_FRONTEND=noninteractive apt install -y ffmpeg libsm6 libxext6
 #RUN pip install grpcio-tools
 
 ARG USERNAME=vscode

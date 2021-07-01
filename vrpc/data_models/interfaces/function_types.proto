@@ -3,12 +3,13 @@ syntax = "proto3";
 package function_pkg;
 
 enum FunctionTypesEnum {
-    Finish = 0;     // Finish
-    Data = 1;       // Data
-    Start = 2;      // Start
-    Load = 3;       // Load
-    GetResult = 4;  // GetResult
-    Stop = 5;       // Stop
+    Unknown = 0;
+    Finish = 1;     // Finish
+    Data = 2;       // Data
+    Start = 3;      // Start
+    Load = 4;       // Load
+    GetResult = 5;  // GetResult
+    Stop = 6;       // Stop
 }
 
 message FunctionTypes {

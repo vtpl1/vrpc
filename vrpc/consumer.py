@@ -5,10 +5,11 @@ import struct
 import threading
 
 from .data_models.function_pkg import FunctionTypes, FunctionTypesEnum
-
-LOGGER = logging.getLogger("consumer")
+from .data_models.opencv import OcvMat
 from .data_models.person_pkg import Friend, Person, PersonInfo, Sex
 from .utils import get_folder
+
+LOGGER = logging.getLogger("consumer")
 
 
 class Consumer(threading.Thread):
@@ -38,12 +39,20 @@ class Consumer(threading.Thread):
                                 LOGGER.info(f"Read from {f.tell()}")
                                 l = struct.unpack("<i", f.read(struct.calcsize("<i")))[0]
                                 if l > 0:
+                                    print(f"Read size 0----------- {l}")
                                     function_types = FunctionTypes().parse(f.read(l))
                                     #LOGGER.info(f"function_types: {function_types} {f.tell()}")
                                     if function_types.function_types == FunctionTypesEnum.Data:
                                         l = struct.unpack_from("<i", f.read(struct.calcsize("<i")))[0]
                                         if l > 0:
                                             person = Person().parse(f.read(l))
+                                            l = struct.unpack_from("<i", f.read(struct.calcsize("<i")))[0]
+                                            print(f"Read size 1----------- {l}")
+                                            if l > 0:
+                                                b = f.read(l)
+                                                l = len(b)
+                                                print(f"Read size 3----------- {l}")
+                                                ocvmat = OcvMat().parse(b)
                                             #LOGGER.info(f"Read --- {count} {f.tell()} {person.to_dict()}")
                                     elif function_types.function_types == FunctionTypesEnum.Stop:
                                         break
@@ -53,7 +62,7 @@ class Consumer(threading.Thread):
                             except Exception as e:
                                 LOGGER.error(f"Read Exception {e} {type(e)}")
                     LOGGER.info(f"Deleting file {file}")
-                    os.remove(file)
+                    # os.remove(file)
                 except FileNotFoundError as e:
                     LOGGER.error(f"Read error {e}")
 
