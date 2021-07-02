@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package opencv;
+package data;
 
 message OcvMat {
     int32 rows = 1;

@@ -23,6 +23,10 @@ def ignore_exception(IgnoreException=Exception, DefaultVal=None):
 
 get_int = ignore_exception(ValueError, 0)(int)
 
+def get_folder_name(sub_folder: str) -> str:
+    session_folder = os.path.join(os.getcwd(), sub_folder)
+    return session_folder + os.path.sep
+
 def get_folder(sub_folder: str) -> str:
     session_folder = os.path.join(os.getcwd(), sub_folder)
     if not os.path.exists(session_folder):
@@ -109,6 +113,8 @@ def get_session_yaml_folder() -> str:
 def get_session_folder() -> str:
     return get_folder("session")
 
+def get_session_folder_name() -> str:
+    return get_folder_name("session")
 
 def get_app_folder() -> str:
     return get_folder("app")

@@ -1,8 +1,25 @@
 syntax = "proto3";
 
 package data;
+import "opencv.proto";
+
+message Rect {
+    int32 left = 1;
+    int32 top = 2;
+    int32 width = 3;
+    int32 height = 4;
+}
 
 message ObjectInfo {
-    int32 record_id = 1;
-    int32 object_id = 2;
+    int32 message_id = 1;
+    OcvMat face_chip = 2;
+    OcvMat extended_face_chip = 3;
+    Rect face_rect = 4;
+    string gender = 5;
+    string race = 6;
+    int32 capture_resolution = 7;
+    int64 capture_time = 8;
+    string channel_name = 9;
+    bool auto_registration_tag = 10;
+    bool spoof_tag = 11;
 }

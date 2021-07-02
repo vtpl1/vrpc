@@ -5,9 +5,10 @@ from enum import Enum
 import glob
 import ntpath
 from typing import Any, BinaryIO, Iterator, List, Optional, TextIO, Tuple
+import sys
 
 from .data_models.data import FunctionTypesEnum, SeekInfo, FunctionTypes, ObjectInfo
-from .utils import get_session_folder, get_folder, get_int
+from .utils import get_folder_name, get_session_folder, get_folder, get_int, get_session_folder_name
 
 
 class Mode(Enum):
@@ -52,12 +53,16 @@ class _FsbQueueProducer:
             self.__open()
         function_types = FunctionTypes(function_types=FunctionTypesEnum.Data)
         b = bytes(function_types)
-        self.__file.write(struct.pack("<i", len(b)))
+        l = len(b)
+        LOGGER.info(f"Here1: {l} {b}")
+        self.__file.write(struct.pack("<i", l))
         self.__file.write(b)
-        item.record_id = self.__record_count
+        item.record_id = self.__record_count + 1
         LOGGER.info(f"Writing {item}")
         b = bytes(item)
-        self.__file.write(struct.pack("<i", len(b)))
+        l = len(b)
+        LOGGER.info(f"Here2: {l} {b}")
+        self.__file.write(struct.pack("<i", l))
         self.__file.write(b)
         self.__file.flush()
         self.__record_count += 1
@@ -67,7 +72,7 @@ class _FsbQueueProducer:
         self.__file = None
 
     def __mark_end(self):
-        function_types = FunctionTypes(function_types=FunctionTypesEnum.Data)
+        function_types = FunctionTypes(function_types=FunctionTypesEnum.Finish)
         b = bytes(function_types)
         self.__file.write(struct.pack("<i", len(b)))
         self.__file.write(b)
@@ -82,51 +87,111 @@ class _FsbQueueProducer:
 
 
 class _FsbQueueConsumer:
-    def __init__(self, channel_id) -> None:
+    def __init__(self, queue_id: int, channel_id: int) -> None:
         self.__channel_id = channel_id
-        self.__file_name = ""
-        self.__seek_file_name = ""
-        self.__file = None
-        self.__seek_file = None
+        self.__queue_id = queue_id
+        self.__file_counter: int = sys.maxsize
+        self.__record_count = 0
+        self.__q_folder = get_folder_name(os.path.join(get_session_folder_name(), f"{self.__queue_id:05d}"))
+        self.__file: Optional[BinaryIO] = None
+        self.__seek_file: Optional[BinaryIO] = None
 
-    def get(self) -> Optional[ObjectInfo]:
-        object_info: Optional[ObjectInfo] = None
-        if self.__seek_file is None:
-            return object_info
-        if self.__file is None:
-            return object_info
-
-        self.__seek_file.seek(0)
-        seek_info = SeekInfo().parse(self.__seek_file.read())
-        self.__file.seek(seek_info.offset)
-        l = struct.unpack("<i", self.__file.read(struct.calcsize("<i")))[0]
-        if l > 0:
-            function_types = FunctionTypes().parse(self.__file.read(l))
-            if function_types.function_types == FunctionTypesEnum.Data:
-                l = struct.unpack("<i", self.__file.read(struct.calcsize("<i")))[0]
-                if l > 0:
-                    object_info = ObjectInfo().parse(self.__file.read(l))
-                    seek_info.offset = self.__file.tell()
-                    self.__seek_file.seek(0)
-                    self.__seek_file.write(bytes(seek_info))
-                    self.__seek_file.flush()
-
-            elif function_types.function_types == FunctionTypesEnum.Finish:
-                self.__delete()
-        return object_info
+    def __find_first_file(self) -> bool:
+        file_counter = sys.maxsize
+        for file in glob.glob(os.path.join(self.__q_folder, f"{self.__channel_id:05d}_*.pb")):
+            t = get_int(ntpath.splitext(ntpath.basename(file))[0].split("_")[1])
+            if t < file_counter:
+                file_counter = t
+        if file_counter < sys.maxsize:
+            self.__file_counter = file_counter
+            return True
+        return False
 
     def __delete(self):
-        pass
+        os.remove(self.__file_name)
+        os.remove(self.__seek_file_name)
 
-    def __open_file(self):
-        if self.__file is not None:
+    def __open(self) -> bool:
+        if not self.__find_first_file():
+            return False
+
+        self.__file_name = os.path.join(self.__q_folder, f"{self.__channel_id:05d}_{self.__file_counter:05d}.pb")
+        self.__seek_file_name = os.path.join(self.__q_folder, f"{self.__channel_id:05d}_{self.__file_counter:05d}.pbs")
+        try:
+            self.__file = open(self.__file_name, "rb")
+            LOGGER.info(
+                f"Opening file {self.__file_name} for Q_id: {self.__queue_id} Ch_id: {self.__channel_id} file_counter: {self.__file_counter} record: {self.__record_count}"
+            )
+        except FileNotFoundError as e:
+            LOGGER.error(
+                f"Read error very strange {self.__file_name} for Q_id: {self.__queue_id} Ch_id: {self.__channel_id} file_counter: {self.__file_counter} record: {self.__record_count} {e}"
+            )
+            return False
+
+        try:
+            self.__seek_file = open(self.__seek_file_name, "r+b")
+        except FileNotFoundError as e:
+            LOGGER.error(f"Read error {e}")
+            try:
+                self.__seek_file = open(self.__seek_file_name, "w+b")
+            except FileNotFoundError as e:
+                LOGGER.error(f"Read error {e}")
+                return False
+
+        LOGGER.info(
+            f"Opening seek file {self.__file_name} for Q_id: {self.__queue_id} Ch_id: {self.__channel_id} file_counter: {self.__file_counter} record: {self.__record_count}"
+        )
+        return True
+
+    def __close(self):
+        if self.__file:
             self.__file.close()
-        self.__file = None
-        self.__file = open(self.__file_name, "rb")
-        if self.__seek_file is not None:
+            self.__file = None
+
+        if self.__seek_file:
             self.__seek_file.close()
-        self.__seek_file = None
-        self.__seek_file = open(self.__seek_file_name, "rb")
+            self.__seek_file = None
+
+    def get(self) -> Optional[Tuple[int, ObjectInfo]]:
+        if self.__file is None:
+            if not self.__open():
+                return None
+        
+        if self.__seek_file is None or self.__file is None:
+            return None
+
+        # self.__seek_file.seek(0)
+        # seek_info = SeekInfo().parse(self.__seek_file.read())
+        # self.__file.seek(seek_info.offset)
+        try:
+            bytes_to_read = struct.calcsize("<i")
+            l = struct.unpack("<i", self.__file.read(bytes_to_read))[0]
+            if l > 0:
+                b = self.__file.read(l)
+                LOGGER.info(f"Here1: {l} {b}")
+                function_types = FunctionTypes().parse(b)
+                if function_types.function_types == FunctionTypesEnum.Data:
+                    l = struct.unpack("<i", self.__file.read(struct.calcsize("<i")))[0]
+                    if l == 0:
+                        object_info = ObjectInfo()
+                    elif l > 0:
+                        b = self.__file.read(l)
+                        LOGGER.info(f"Here2: {l} {b}")
+                        object_info = ObjectInfo().parse(b)
+                        # seek_info.offset = self.__file.tell()
+                        # self.__seek_file.seek(0)
+                        # self.__seek_file.write(bytes(seek_info))
+                        # self.__seek_file.flush()
+                        return (self.__channel_id, object_info)
+                elif function_types.function_types == FunctionTypesEnum.Finish:
+                    self.__close()
+                    self.__delete()
+        except struct.error:
+            pass
+        return None
+
+    def stop(self):
+        self.__close()
 
 
 class FsbQueue:
@@ -139,7 +204,7 @@ class FsbQueue:
         self.__mode: Mode = Mode.UNKNOWN
 
         # Required variables for consumer mode
-        self.__list_fsb_queue_consumer: List[_FsbQueueConsumer] = []
+        self.__list_fsb_queue_consumer: List[_FsbQueueConsumer] = [_FsbQueueConsumer(queue_id, channel_id)]
         self.__list_fsb_queue_consumer_iter: Iterator[_FsbQueueConsumer] = iter(self.__list_fsb_queue_consumer)
 
         # Required variables for producer mode
@@ -156,8 +221,8 @@ class FsbQueue:
 
     def get(self) -> Optional[Tuple[int, ObjectInfo]]:
         if self.__mode == Mode.UNKNOWN:
-            self.__mode = Mode.PRODUCER
-        if not self.__mode == Mode.PRODUCER:
+            self.__mode = Mode.CONSUMER
+        if not self.__mode == Mode.CONSUMER:
             raise RuntimeError(f"The {self.name} is in {self.__mode} mode")
 
         fsb_queue_consumer = None
@@ -174,6 +239,8 @@ class FsbQueue:
     def stop(self) -> None:
         if self.__fsb_queue_producer:
             self.__fsb_queue_producer.stop()
+        for fsb_queue_consumer in self.__list_fsb_queue_consumer:
+            fsb_queue_consumer.stop()
 
     def __add_new_consumer_in_list(self):
         pass
