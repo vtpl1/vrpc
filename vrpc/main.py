@@ -9,7 +9,6 @@ import threading
 
 import ruamel.yaml
 
-from .consumer import Consumer
 from .producer import Producer
 from .utils import get_generated_engines_folder, get_session_folder
 
@@ -74,16 +73,21 @@ def main():
         global is_shutdown
         parser = init_argparser()
         args = parser.parse_args()
-        o_consumer = Consumer(12)
-        o_consumer.start()
-        o_producer = Producer(0, 12)
-        o_producer.start()
+        # o_consumer = Consumer(12)
+        # o_consumer.start()
+
+        o_producer1 = Producer(0, 12)
+        o_producer1.start()
+        # o_producer2 = Producer(1, 12)
+        # o_producer2.start()
+
         while not is_shutdown.wait(10.0):
             continue
     except Exception as e:
         LOGGER.exception(f"Startup issue: {e}")
-    o_producer.stop()
-    o_consumer.stop()
+    o_producer1.stop()
+    # o_producer2.stop()
+    # o_consumer.stop()
     LOGGER.info("=============================================")
     LOGGER.info("    Shutdown complete {} {}               ".format(__name__, get_version()))
     LOGGER.info("=============================================")

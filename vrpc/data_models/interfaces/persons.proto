@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-import "person.proto";
-
-package person_pkg;
-
-message Persons {
-    repeated Person person = 1; // Person
-}

@@ -5,6 +5,24 @@ import uuid
 from typing import Any
 
 
+def ignore_exception(IgnoreException=Exception, DefaultVal=None):
+    """ Decorator for ignoring exception from a function
+    e.g.   @ignore_exception(DivideByZero)
+    e.g.2. ignore_exception(DivideByZero)(Divide)(2/0)
+    """
+    def dec(function):
+        def _dec(*args, **kwargs):
+            try:
+                return function(*args, **kwargs)
+            except IgnoreException:
+                return DefaultVal
+
+        return _dec
+
+    return dec
+
+get_int = ignore_exception(ValueError, 0)(int)
+
 def get_folder(sub_folder: str) -> str:
     session_folder = os.path.join(os.getcwd(), sub_folder)
     if not os.path.exists(session_folder):
@@ -13,7 +31,7 @@ def get_folder(sub_folder: str) -> str:
             print("{} folder created in {}".format(sub_folder, session_folder))
         except OSError as e:
             print(e)
-            raise
+            #raise
     return session_folder + os.path.sep
 
 
