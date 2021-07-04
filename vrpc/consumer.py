@@ -21,7 +21,7 @@ class Consumer(threading.Thread):
     def run(self):
         count = 0
         LOGGER.info(f"Start")
-        while not self.__is_shut_down.wait(0.5):
+        while not self.__is_shut_down.wait(1.0):
             ret = self.__fsb_q.get()
             if ret is None:
                 continue

@@ -13,12 +13,9 @@ from .producer import Producer
 from .utils import get_generated_engines_folder, get_session_folder
 
 
-def setup_logging(default_path="logging.yaml", default_level=logging.INFO, env_key="LOG_CFG"):
+def setup_logging(default_path="logging.yaml"):
     """Setup logging configuration"""
     path = get_session_folder() + default_path
-    # value = os.getenv(env_key, None)
-    # if value:
-    #     path = value
     if not os.path.exists(path):
         shutil.copy(os.path.join(os.path.dirname(__file__), "logging.yaml"), path)
 
@@ -76,8 +73,8 @@ def main():
         o_consumer = Consumer(12)
         o_consumer.start()
 
-        o_producer1 = Producer(0, 12)
-        o_producer1.start()
+        # o_producer1 = Producer(0, 12)
+        # o_producer1.start()
         # o_producer2 = Producer(1, 12)
         # o_producer2.start()
 
@@ -86,7 +83,7 @@ def main():
     except Exception as e:
         LOGGER.exception(f"Startup issue: {e}")
 
-    o_producer1.stop()
+    # o_producer1.stop()
     # o_producer2.stop()
     o_consumer.stop()
     LOGGER.info("=============================================")

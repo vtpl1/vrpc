@@ -22,7 +22,7 @@ class Producer(threading.Thread):
     def run(self):
         count = 0
         LOGGER.info(f"Start")
-        while not self.__is_shut_down.wait(0.1):
+        while not self.__is_shut_down.wait(0.3):
             item = ObjectInfo(message_id = count)
             self.__fsb_q.put(item)
             count += 1

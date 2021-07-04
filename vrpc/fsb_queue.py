@@ -7,7 +7,7 @@ import ntpath
 from typing import Any, BinaryIO, Iterator, List, Optional, TextIO, Tuple
 import sys
 
-from .data_models.data import FunctionTypesEnum, SeekInfo, FunctionTypes, ObjectInfo
+from .data_models.data import ObjectInfo
 from .utils import get_folder_name, get_session_folder, get_folder, get_int, get_session_folder_name
 
 
@@ -21,6 +21,8 @@ LOGGER = logging.getLogger(__name__)
 
 MAX_RECORDS = 100
 
+_FUNC_TYPE_DATA: int = 1
+_FUNC_TYPE_EOF: int = 2
 
 class _FsbQueueProducer:
     def __init__(self, queue_id: int, channel_id: int) -> None:
@@ -51,17 +53,10 @@ class _FsbQueueProducer:
             self.__mark_end()
             self.__close()
             self.__open()
-        function_types = FunctionTypes(function_types=FunctionTypesEnum.Data)
-        b = bytes(function_types)
-        l = len(b)
-        LOGGER.info(f"Here1: {l} {b}")
-        self.__file.write(struct.pack("<i", l))
-        self.__file.write(b)
-        item.record_id = self.__record_count + 1
-        LOGGER.info(f"Writing {item}")
+        item.message_id = self.__record_count + 1
         b = bytes(item)
         l = len(b)
-        LOGGER.info(f"Here2: {l} {b}")
+        self.__file.write(struct.pack("<i", _FUNC_TYPE_DATA))
         self.__file.write(struct.pack("<i", l))
         self.__file.write(b)
         self.__file.flush()
@@ -72,10 +67,7 @@ class _FsbQueueProducer:
         self.__file = None
 
     def __mark_end(self):
-        function_types = FunctionTypes(function_types=FunctionTypesEnum.Finish)
-        b = bytes(function_types)
-        self.__file.write(struct.pack("<i", len(b)))
-        self.__file.write(b)
+        self.__file.write(struct.pack("<i", _FUNC_TYPE_EOF))
         self.__file.flush()
         LOGGER.info(
             f"Marking end {self.__file_name} for Q_id: {self.__queue_id} Ch_id: {self.__channel_id} file_counter: {self.__file_counter} record: {self.__record_count}"
@@ -116,30 +108,30 @@ class _FsbQueueConsumer:
             return False
 
         self.__file_name = os.path.join(self.__q_folder, f"{self.__channel_id:05d}_{self.__file_counter:05d}.pb")
-        self.__seek_file_name = os.path.join(self.__q_folder, f"{self.__channel_id:05d}_{self.__file_counter:05d}.pbs")
+        self.__seek_file_name = os.path.join(self.__q_folder, f".{self.__channel_id:05d}.session")
         try:
             self.__file = open(self.__file_name, "rb")
-            LOGGER.info(
-                f"Opening file {self.__file_name} for Q_id: {self.__queue_id} Ch_id: {self.__channel_id} file_counter: {self.__file_counter} record: {self.__record_count}"
-            )
         except FileNotFoundError as e:
             LOGGER.error(
                 f"Read error very strange {self.__file_name} for Q_id: {self.__queue_id} Ch_id: {self.__channel_id} file_counter: {self.__file_counter} record: {self.__record_count} {e}"
             )
             return False
 
+        LOGGER.info(
+            f"Opening file {self.__file_name} for Q_id: {self.__queue_id} Ch_id: {self.__channel_id} file_counter: {self.__file_counter} record: {self.__record_count}"
+        )
+
+        file_mode = "wb+"
+        if os.path.exists(self.__seek_file_name):
+            file_mode = "rb+"
         try:
-            self.__seek_file = open(self.__seek_file_name, "r+b")
+            self.__seek_file = open(self.__seek_file_name, file_mode)
         except FileNotFoundError as e:
             LOGGER.error(f"Read error {e}")
-            try:
-                self.__seek_file = open(self.__seek_file_name, "w+b")
-            except FileNotFoundError as e:
-                LOGGER.error(f"Read error {e}")
-                return False
+            return False
 
         LOGGER.info(
-            f"Opening seek file {self.__file_name} for Q_id: {self.__queue_id} Ch_id: {self.__channel_id} file_counter: {self.__file_counter} record: {self.__record_count}"
+            f"Opening seek file {self.__file_name} file mode {file_mode} for Q_id: {self.__queue_id} Ch_id: {self.__channel_id} file_counter: {self.__file_counter} record: {self.__record_count}"
         )
         return True
 
@@ -159,33 +151,34 @@ class _FsbQueueConsumer:
         
         if self.__seek_file is None or self.__file is None:
             return None
-
-        # self.__seek_file.seek(0)
-        # seek_info = SeekInfo().parse(self.__seek_file.read())
-        # self.__file.seek(seek_info.offset)
+        
+        self.__seek_file.seek(0)
+        offset = 0
+        file_counter = self.__file_counter
+        try:
+            file_counter, offset = struct.unpack("<iQ", self.__seek_file.read(struct.calcsize("<iQ")))
+        except struct.error:
+            pass
+        LOGGER.info(f"READ: {offset}")
+        #self.__file.seek(offset)
         try:
             bytes_to_read = struct.calcsize("<i")
-            l = struct.unpack("<i", self.__file.read(bytes_to_read))[0]
-            if l > 0:
-                b = self.__file.read(l)
-                LOGGER.info(f"Here1: {l} {b}")
-                function_types = FunctionTypes().parse(b)
-                if function_types.function_types == FunctionTypesEnum.Data:
-                    l = struct.unpack("<i", self.__file.read(struct.calcsize("<i")))[0]
-                    if l == 0:
-                        object_info = ObjectInfo()
-                    elif l > 0:
-                        b = self.__file.read(l)
-                        LOGGER.info(f"Here2: {l} {b}")
-                        object_info = ObjectInfo().parse(b)
-                        # seek_info.offset = self.__file.tell()
-                        # self.__seek_file.seek(0)
-                        # self.__seek_file.write(bytes(seek_info))
-                        # self.__seek_file.flush()
-                        return (self.__channel_id, object_info)
-                elif function_types.function_types == FunctionTypesEnum.Finish:
-                    self.__close()
-                    self.__delete()
+            function_type = struct.unpack("<i", self.__file.read(bytes_to_read))[0]
+            if function_type == _FUNC_TYPE_DATA:
+                l = struct.unpack("<i", self.__file.read(struct.calcsize("<i")))[0]
+                if l == 0:
+                    object_info = ObjectInfo()
+                elif l > 0:
+                    b = self.__file.read(l)
+                    object_info = ObjectInfo().parse(b)
+                    offset = self.__file.tell()
+                    self.__seek_file.seek(0)                    
+                    self.__seek_file.write(struct.pack("<iQ", file_counter, offset))
+                    self.__seek_file.flush()
+                    return (self.__channel_id, object_info)
+            elif function_type == _FUNC_TYPE_EOF:
+                self.__close()
+                self.__delete()
         except struct.error:
             pass
         return None

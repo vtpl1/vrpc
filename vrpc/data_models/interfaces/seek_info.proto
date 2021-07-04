@@ -1,7 +1,0 @@
-syntax = "proto3";
-
-package data;
-
-message SeekInfo {
-    int32 offset = 1;
-}
