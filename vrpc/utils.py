@@ -6,7 +6,7 @@ from typing import Any
 
 
 def ignore_exception(IgnoreException=Exception, DefaultVal=None):
-    """ Decorator for ignoring exception from a function
+    """Decorator for ignoring exception from a function
     e.g.   @ignore_exception(DivideByZero)
     e.g.2. ignore_exception(DivideByZero)(Divide)(2/0)
     """
@@ -21,11 +21,14 @@ def ignore_exception(IgnoreException=Exception, DefaultVal=None):
 
     return dec
 
+
 get_int = ignore_exception(ValueError, 0)(int)
+
 
 def get_folder_name(sub_folder: str) -> str:
     session_folder = os.path.join(os.getcwd(), sub_folder)
     return session_folder + os.path.sep
+
 
 def get_folder(sub_folder: str) -> str:
     session_folder = os.path.join(os.getcwd(), sub_folder)
@@ -35,7 +38,7 @@ def get_folder(sub_folder: str) -> str:
             print("{} folder created in {}".format(sub_folder, session_folder))
         except OSError as e:
             print(e)
-            #raise
+            # raise
     return session_folder + os.path.sep
 
 
@@ -113,8 +116,10 @@ def get_session_yaml_folder() -> str:
 def get_session_folder() -> str:
     return get_folder("session")
 
+
 def get_session_folder_name() -> str:
     return get_folder_name("session")
+
 
 def get_app_folder() -> str:
     return get_folder("app")

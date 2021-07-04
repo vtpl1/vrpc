@@ -1,14 +1,21 @@
+import glob
 import logging
+import ntpath
 import os
 import struct
-from enum import Enum
-import glob
-import ntpath
-from typing import Any, BinaryIO, Iterator, List, Optional, TextIO, Tuple
 import sys
+import time
+from enum import Enum
+from typing import Any, BinaryIO, Iterator, List, Optional, TextIO, Tuple
 
 from .data_models.data import ObjectInfo
-from .utils import get_folder_name, get_session_folder, get_folder, get_int, get_session_folder_name
+from .utils import (
+    get_folder,
+    get_folder_name,
+    get_int,
+    get_session_folder,
+    get_session_folder_name,
+)
 
 
 class Mode(Enum):
@@ -23,6 +30,7 @@ MAX_RECORDS = 100
 
 _FUNC_TYPE_DATA: int = 1
 _FUNC_TYPE_EOF: int = 2
+
 
 class _FsbQueueProducer:
     def __init__(self, queue_id: int, channel_id: int) -> None:
@@ -148,19 +156,19 @@ class _FsbQueueConsumer:
         if self.__file is None:
             if not self.__open():
                 return None
-        
+
         if self.__seek_file is None or self.__file is None:
             return None
-        
-        self.__seek_file.seek(0)
-        offset = 0
-        file_counter = self.__file_counter
-        try:
-            file_counter, offset = struct.unpack("<iQ", self.__seek_file.read(struct.calcsize("<iQ")))
-        except struct.error:
-            pass
-        LOGGER.info(f"READ: {offset}")
-        self.__file.seek(offset)
+
+        # self.__seek_file.seek(0)
+        # offset = 0
+        # file_counter = self.__file_counter
+        # try:
+        #     file_counter, offset = struct.unpack("<iQ", self.__seek_file.read(struct.calcsize("<iQ")))
+        # except struct.error:
+        #     pass
+        # LOGGER.info(f"READ: {offset}")
+        # self.__file.seek(offset)
         try:
             bytes_to_read = struct.calcsize("<i")
             function_type = struct.unpack("<i", self.__file.read(bytes_to_read))[0]
@@ -171,15 +179,16 @@ class _FsbQueueConsumer:
                 elif l > 0:
                     b = self.__file.read(l)
                     object_info = ObjectInfo().parse(b)
-                    offset = self.__file.tell()
-                    self.__seek_file.seek(0)                    
-                    self.__seek_file.write(struct.pack("<iQ", file_counter, offset))
-                    self.__seek_file.flush()
+                    # offset = self.__file.tell()
+                    # self.__seek_file.seek(0)
+                    # self.__seek_file.write(struct.pack("<iQ", file_counter, offset))
+                    # self.__seek_file.flush()
                     return (self.__channel_id, object_info)
             elif function_type == _FUNC_TYPE_EOF:
                 self.__close()
                 self.__delete()
         except struct.error:
+            time.sleep(0.01)
             pass
         return None
 

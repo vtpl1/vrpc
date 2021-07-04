@@ -2,10 +2,11 @@ import logging
 import os
 import struct
 import threading
-from vrpc.data_models.data import ObjectInfo
-from vrpc.fsb_queue import FsbQueue
 
 import cv2
+
+from vrpc.data_models.data import ObjectInfo
+from vrpc.fsb_queue import FsbQueue
 
 from .utils import get_folder
 
@@ -23,7 +24,7 @@ class Producer(threading.Thread):
         count = 0
         LOGGER.info(f"Start")
         while not self.__is_shut_down.wait(0.3):
-            item = ObjectInfo(message_id = count)
+            item = ObjectInfo(message_id=count)
             self.__fsb_q.put(item)
             count += 1
         self.__fsb_q.stop()
@@ -32,5 +33,5 @@ class Producer(threading.Thread):
     def stop(self):
         if self.__already_shutting_down:
             return
-        self.__already_shutting_down = True        
+        self.__already_shutting_down = True
         self.__is_shut_down.set()

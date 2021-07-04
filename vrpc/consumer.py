@@ -3,9 +3,11 @@ import logging
 import os
 import struct
 import threading
-from .fsb_queue import FsbQueue
+
 import cv2
 import numpy as np
+
+from .fsb_queue import FsbQueue
 from .utils import get_folder, get_session_folder
 
 LOGGER = logging.getLogger("consumer")
@@ -21,7 +23,7 @@ class Consumer(threading.Thread):
     def run(self):
         count = 0
         LOGGER.info(f"Start")
-        while not self.__is_shut_down.wait(1.0):
+        while not self.__is_shut_down.is_set():
             ret = self.__fsb_q.get()
             if ret is None:
                 continue

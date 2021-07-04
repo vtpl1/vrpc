@@ -2,6 +2,7 @@
 # sources: opencv.proto, object_info_with_images.proto
 # plugin: python-betterproto
 from dataclasses import dataclass
+from typing import List
 
 import betterproto
 
@@ -24,15 +25,21 @@ class Rect(betterproto.Message):
 
 
 @dataclass
+class ListRect(betterproto.Message):
+    rect: List["Rect"] = betterproto.message_field(1)
+
+
+@dataclass
 class ObjectInfo(betterproto.Message):
     message_id: int = betterproto.int32_field(1)
-    face_chip: "OcvMat" = betterproto.message_field(2)
-    extended_face_chip: "OcvMat" = betterproto.message_field(3)
-    face_rect: "Rect" = betterproto.message_field(4)
-    gender: str = betterproto.string_field(5)
-    race: str = betterproto.string_field(6)
-    capture_resolution: int = betterproto.int32_field(7)
-    capture_time: int = betterproto.int64_field(8)
-    channel_name: str = betterproto.string_field(9)
-    auto_registration_tag: bool = betterproto.bool_field(10)
-    spoof_tag: bool = betterproto.bool_field(11)
+    face_rect: "Rect" = betterproto.message_field(2)
+    gender: str = betterproto.string_field(3)
+    race: str = betterproto.string_field(4)
+    capture_resolution: int = betterproto.int32_field(5)
+    capture_time: float = betterproto.float_field(6)
+    channel_name: str = betterproto.string_field(7)
+    auto_registration_tag: int = betterproto.int32_field(8)
+    spoof_tag: bool = betterproto.bool_field(9)
+    face_chip: "OcvMat" = betterproto.message_field(10)
+    extended_face_chip: "OcvMat" = betterproto.message_field(11)
+    full_image: "OcvMat" = betterproto.message_field(12)

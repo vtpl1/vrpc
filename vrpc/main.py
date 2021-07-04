@@ -8,6 +8,7 @@ import signal
 import threading
 
 import ruamel.yaml
+
 from .consumer import Consumer
 from .producer import Producer
 from .utils import get_generated_engines_folder, get_session_folder
