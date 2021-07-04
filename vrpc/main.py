@@ -73,8 +73,8 @@ def main():
         o_consumer = Consumer(12)
         o_consumer.start()
 
-        # o_producer1 = Producer(0, 12)
-        # o_producer1.start()
+        o_producer1 = Producer(0, 12)
+        o_producer1.start()
         # o_producer2 = Producer(1, 12)
         # o_producer2.start()
 
@@ -83,7 +83,7 @@ def main():
     except Exception as e:
         LOGGER.exception(f"Startup issue: {e}")
 
-    # o_producer1.stop()
+    o_producer1.stop()
     # o_producer2.stop()
     o_consumer.stop()
     LOGGER.info("=============================================")

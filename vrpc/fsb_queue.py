@@ -121,17 +121,17 @@ class _FsbQueueConsumer:
             f"Opening file {self.__file_name} for Q_id: {self.__queue_id} Ch_id: {self.__channel_id} file_counter: {self.__file_counter} record: {self.__record_count}"
         )
 
-        file_mode = "wb+"
-        if os.path.exists(self.__seek_file_name):
-            file_mode = "rb+"
         try:
-            self.__seek_file = open(self.__seek_file_name, file_mode)
+            if os.path.exists(self.__seek_file_name):
+                self.__seek_file = open(self.__seek_file_name, "rb+")
+            else:
+                self.__seek_file = open(self.__seek_file_name, "wb+")
         except FileNotFoundError as e:
             LOGGER.error(f"Read error {e}")
             return False
 
         LOGGER.info(
-            f"Opening seek file {self.__file_name} file mode {file_mode} for Q_id: {self.__queue_id} Ch_id: {self.__channel_id} file_counter: {self.__file_counter} record: {self.__record_count}"
+            f"Opening seek file {self.__file_name} for Q_id: {self.__queue_id} Ch_id: {self.__channel_id} file_counter: {self.__file_counter} record: {self.__record_count}"
         )
         return True
 
@@ -160,7 +160,7 @@ class _FsbQueueConsumer:
         except struct.error:
             pass
         LOGGER.info(f"READ: {offset}")
-        #self.__file.seek(offset)
+        self.__file.seek(offset)
         try:
             bytes_to_read = struct.calcsize("<i")
             function_type = struct.unpack("<i", self.__file.read(bytes_to_read))[0]

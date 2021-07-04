@@ -32,5 +32,5 @@ class Producer(threading.Thread):
     def stop(self):
         if self.__already_shutting_down:
             return
-        self.__already_shutting_down = True
+        self.__already_shutting_down = True        
         self.__is_shut_down.set()
