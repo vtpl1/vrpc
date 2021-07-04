@@ -27,7 +27,9 @@ class Mode(Enum):
 LOGGER = logging.getLogger(__name__)
 
 MAX_RECORDS = 100
-
+_QUEUE_EXTENSION = ".fsbq"
+_WRITE_SESSION_EXTENSION = ".fsws"
+_READ_SESSION_EXTENSION = ".fsrs"
 _FUNC_TYPE_DATA: int = 1
 _FUNC_TYPE_EOF: int = 2
 
@@ -37,48 +39,81 @@ class _FsbQueueProducer:
         self.__channel_id = channel_id
         self.__queue_id = queue_id
         self.__file_counter: int = 0
-        self.__record_count = 0
+        self.__message_counter: int = 0
+        self.__offset: int = 0
+
         self.__q_folder = get_folder(os.path.join(get_session_folder(), f"{self.__queue_id:05d}"))
         self.__find_last_file()
         self.__open()
 
     def __find_last_file(self):
-        for file in glob.glob(os.path.join(self.__q_folder, f"{self.__channel_id:05d}_*.pb")):
+        for file in glob.glob(os.path.join(self.__q_folder, f"{self.__channel_id:05d}_*{_QUEUE_EXTENSION}")):
             file_counter = get_int(ntpath.splitext(ntpath.basename(file))[0].split("_")[1])
             if file_counter > self.__file_counter:
                 self.__file_counter = file_counter
 
+    def __write_seek_file(self):
+        self.__offset = self.__file.tell()
+        self.__seek_file.seek(0)
+        self.__seek_file.write(struct.pack("<iQQ", self.__file_counter, self.__message_counter, self.__offset))
+        self.__seek_file.flush()
+
     def __open(self):
+        self.__write_session_file_name = os.path.join(self.__q_folder,
+                                                      f".{self.__channel_id:05d}{_WRITE_SESSION_EXTENSION}")
+        file_counter, message_counter, offset = 0, 0, 0
+        try:
+            if os.path.exists(self.__write_session_file_name):
+                self.__seek_file = open(self.__write_session_file_name, "rb+")
+                try:
+                    file_counter, message_counter, offset = struct.unpack(
+                        "<iQQ", self.__seek_file.read(struct.calcsize("<iQQ")))
+                except struct.error as e:
+                    LOGGER.fatal("Unexpected struct error {e}")
+            else:
+                self.__seek_file = open(self.__write_session_file_name, "wb")
+        except FileNotFoundError as e:
+            LOGGER.fatal("Unexpected read error {e}")
+
+        assert self.__file_counter == file_counter
         self.__file_counter += 1
-        self.__file_name = os.path.join(self.__q_folder, f"{self.__channel_id:05d}_{self.__file_counter:05d}.pb")
-        LOGGER.info(
-            f"Opening file {self.__file_name} for Q_id: {self.__queue_id} Ch_id: {self.__channel_id} file_counter: {self.__file_counter} record: {self.__record_count}"
+        self.__message_counter = message_counter
+        self.__file_name = os.path.join(
+            self.__q_folder,
+            f"{self.__channel_id:05d}_{self.__file_counter:05d}{_QUEUE_EXTENSION}",
         )
         self.__file = open(self.__file_name, "wb")
+        self.__write_seek_file()
+        LOGGER.info(
+            f"Opening file {self.__file_name} for Q_id: {self.__queue_id} Ch_id: {self.__channel_id} file_counter: {self.__file_counter} record: {self.__message_counter}"
+        )
 
     def put(self, item: ObjectInfo):
-        if self.__record_count > 0 and self.__record_count % MAX_RECORDS == 0:
+        if self.__message_counter > 0 and self.__message_counter % MAX_RECORDS == 0:
             self.__mark_end()
             self.__close()
             self.__open()
-        item.message_id = self.__record_count + 1
+        self.__message_counter += 1
+        item.message_id = self.__message_counter
         b = bytes(item)
         l = len(b)
         self.__file.write(struct.pack("<i", _FUNC_TYPE_DATA))
         self.__file.write(struct.pack("<i", l))
         self.__file.write(b)
         self.__file.flush()
-        self.__record_count += 1
+        self.__write_seek_file()
 
     def __close(self):
         self.__file.close()
         self.__file = None
+        self.__seek_file.close()
+        self.__seek_file = None
 
     def __mark_end(self):
         self.__file.write(struct.pack("<i", _FUNC_TYPE_EOF))
         self.__file.flush()
         LOGGER.info(
-            f"Marking end {self.__file_name} for Q_id: {self.__queue_id} Ch_id: {self.__channel_id} file_counter: {self.__file_counter} record: {self.__record_count}"
+            f"Marking end {self.__file_name} for Q_id: {self.__queue_id} Ch_id: {self.__channel_id} file_counter: {self.__file_counter} record: {self.__message_counter}"
         )
 
     def stop(self):
@@ -91,14 +126,14 @@ class _FsbQueueConsumer:
         self.__channel_id = channel_id
         self.__queue_id = queue_id
         self.__file_counter: int = sys.maxsize
-        self.__record_count = 0
+        self.__message_counter = 0
         self.__q_folder = get_folder_name(os.path.join(get_session_folder_name(), f"{self.__queue_id:05d}"))
         self.__file: Optional[BinaryIO] = None
         self.__seek_file: Optional[BinaryIO] = None
 
     def __find_first_file(self) -> bool:
         file_counter = sys.maxsize
-        for file in glob.glob(os.path.join(self.__q_folder, f"{self.__channel_id:05d}_*.pb")):
+        for file in glob.glob(os.path.join(self.__q_folder, f"{self.__channel_id:05d}_*{_QUEUE_EXTENSION}")):
             t = get_int(ntpath.splitext(ntpath.basename(file))[0].split("_")[1])
             if t < file_counter:
                 file_counter = t
@@ -115,18 +150,21 @@ class _FsbQueueConsumer:
         if not self.__find_first_file():
             return False
 
-        self.__file_name = os.path.join(self.__q_folder, f"{self.__channel_id:05d}_{self.__file_counter:05d}.pb")
+        self.__file_name = os.path.join(
+            self.__q_folder,
+            f"{self.__channel_id:05d}_{self.__file_counter:05d}{_QUEUE_EXTENSION}",
+        )
         self.__seek_file_name = os.path.join(self.__q_folder, f".{self.__channel_id:05d}.session")
         try:
             self.__file = open(self.__file_name, "rb")
         except FileNotFoundError as e:
             LOGGER.error(
-                f"Read error very strange {self.__file_name} for Q_id: {self.__queue_id} Ch_id: {self.__channel_id} file_counter: {self.__file_counter} record: {self.__record_count} {e}"
+                f"Read error very strange {self.__file_name} for Q_id: {self.__queue_id} Ch_id: {self.__channel_id} file_counter: {self.__file_counter} record: {self.__message_counter} {e}"
             )
             return False
 
         LOGGER.info(
-            f"Opening file {self.__file_name} for Q_id: {self.__queue_id} Ch_id: {self.__channel_id} file_counter: {self.__file_counter} record: {self.__record_count}"
+            f"Opening file {self.__file_name} for Q_id: {self.__queue_id} Ch_id: {self.__channel_id} file_counter: {self.__file_counter} record: {self.__message_counter}"
         )
 
         try:
@@ -139,7 +177,7 @@ class _FsbQueueConsumer:
             return False
 
         LOGGER.info(
-            f"Opening seek file {self.__file_name} for Q_id: {self.__queue_id} Ch_id: {self.__channel_id} file_counter: {self.__file_counter} record: {self.__record_count}"
+            f"Opening seek file {self.__file_name} for Q_id: {self.__queue_id} Ch_id: {self.__channel_id} file_counter: {self.__file_counter} record: {self.__message_counter}"
         )
         return True
 
@@ -152,6 +190,12 @@ class _FsbQueueConsumer:
             self.__seek_file.close()
             self.__seek_file = None
 
+    def __write_seek_file(self):
+        self.__offset = self.__file.tell()
+        self.__seek_file.seek(0)
+        self.__seek_file.write(struct.pack("<iQQ", self.__file_counter, self.__message_counter, self.__offset))
+        self.__seek_file.flush()
+        
     def get(self) -> Optional[Tuple[int, ObjectInfo]]:
         if self.__file is None:
             if not self.__open():
