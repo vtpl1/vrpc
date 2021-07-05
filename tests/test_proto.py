@@ -9,7 +9,7 @@ def test_proto(caplog):
     x = ObjectInfo()
     # x.message_id = 101
     x.spoof_tag = True
-    b = bytes(x)    # .SerializeToString()
+    b = bytes(x)  # .SerializeToString()
     l = len(b)
     y = ObjectInfo().parse(b)
     logging.info(f"{l} {b.hex()} {y}")

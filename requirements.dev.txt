@@ -15,3 +15,4 @@ isort
 pycln
 pytest-monitor
 Cython
+click

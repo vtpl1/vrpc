@@ -4,9 +4,9 @@ import glob
 import os
 
 # the below order is important from setuptools import find_packages, setup then from Cython.Build import cythonize
-from setuptools import find_packages, setup    # isort:skip
+from setuptools import find_packages, setup  # isort:skip
 
-from Cython.Build import cythonize    # isort:skip
+from Cython.Build import cythonize  # isort:skip
 
 
 def read(rel_path):
@@ -54,8 +54,11 @@ def get_install_requires():
 def get_python_files():
     l = []
     for z in [
-            y + os.path.sep + "*.py"
-            for y in [x.replace(".", os.path.sep) for x in find_packages(exclude=["*.tests", "test", "session"])]
+        y + os.path.sep + "*.py"
+        for y in [
+            x.replace(".", os.path.sep)
+            for x in find_packages(exclude=["*.tests", "test", "session"])
+        ]
     ]:
         l.extend(glob.glob(z))
     return [a for a in l if not a.endswith("__init__.py")]
