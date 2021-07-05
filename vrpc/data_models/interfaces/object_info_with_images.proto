@@ -27,5 +27,4 @@ message ObjectInfo {
     OcvMat face_chip = 10;
     OcvMat extended_face_chip = 11;
     OcvMat full_image = 12;
-
 }
