@@ -6,7 +6,7 @@ import threading
 import cv2
 
 from vrpc.data_models.data import ObjectInfo
-from vrpc.fsb_queue import FsbQueue
+from vrpc.fsb_queue import FsbQueueProducer
 
 from .utils import get_folder
 
@@ -14,11 +14,11 @@ LOGGER = logging.getLogger("producer")
 
 
 class Producer(threading.Thread):
-    def __init__(self, channel_id=0, queu_id=0) -> None:
+    def __init__(self, channel_id: str, queu_id=0) -> None:
         super().__init__()
         self.__is_shut_down = threading.Event()
         self.__already_shutting_down = False
-        self.__fsb_q = FsbQueue(queu_id, channel_id=channel_id)
+        self.__fsb_q = FsbQueueProducer(queu_id, channel_id=channel_id)
 
     def run(self):
         count = 0

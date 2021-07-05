@@ -6,6 +6,7 @@ import os
 import shutil
 import signal
 import threading
+import uuid
 
 import ruamel.yaml
 
@@ -74,9 +75,9 @@ def main():
         o_consumer = Consumer(12)
         o_consumer.start()
 
-        o_producer1 = Producer(0, 12)
+        o_producer1 = Producer("u_0", 12)
         o_producer1.start()
-        o_producer2 = Producer(1, 12)
+        o_producer2 = Producer("u_1", 12)
         o_producer2.start()
 
         while not is_shutdown.wait(10.0):

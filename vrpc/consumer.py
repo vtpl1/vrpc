@@ -7,7 +7,7 @@ import threading
 import cv2
 import numpy as np
 
-from .fsb_queue import FsbQueue
+from .fsb_queue import FsbQueueConsumer
 from .utils import get_folder, get_session_folder
 
 LOGGER = logging.getLogger("consumer")
@@ -18,7 +18,7 @@ class Consumer(threading.Thread):
         super().__init__()
         self.__is_shut_down = threading.Event()
         self.__already_shutting_down = False
-        self.__fsb_q = FsbQueue(queu_id, 0)
+        self.__fsb_q = FsbQueueConsumer(queu_id)
 
     def run(self):
         count = 0
@@ -28,7 +28,7 @@ class Consumer(threading.Thread):
             if ret is None:
                 continue
             channel_id, item = ret
-            LOGGER.info(f"{channel_id} {item}")
+            # LOGGER.info(f"{channel_id} {item}")
         self.__fsb_q.stop()
         LOGGER.info(f"End")
 

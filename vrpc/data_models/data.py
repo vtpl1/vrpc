@@ -30,6 +30,16 @@ class ListRect(betterproto.Message):
 
 
 @dataclass
+class ChannelDetails(betterproto.Message):
+    my_id: str = betterproto.string_field(1)
+    engine_name: str = betterproto.string_field(2)
+    engine_type: str = betterproto.string_field(3)
+    channel_name: str = betterproto.string_field(4)
+    latitude: float = betterproto.float_field(5)
+    longitude: float = betterproto.float_field(6)
+
+
+@dataclass
 class ObjectInfo(betterproto.Message):
     message_id: int = betterproto.int32_field(1)
     face_rect: "Rect" = betterproto.message_field(2)
@@ -37,9 +47,9 @@ class ObjectInfo(betterproto.Message):
     race: str = betterproto.string_field(4)
     capture_resolution: int = betterproto.int32_field(5)
     capture_time: float = betterproto.float_field(6)
-    channel_name: str = betterproto.string_field(7)
-    auto_registration_tag: int = betterproto.int32_field(8)
-    spoof_tag: bool = betterproto.bool_field(9)
+    auto_registration_tag: int = betterproto.int32_field(7)
+    spoof_tag: bool = betterproto.bool_field(8)
+    channel_details: "ChannelDetails" = betterproto.message_field(9)
     face_chip: "OcvMat" = betterproto.message_field(10)
     extended_face_chip: "OcvMat" = betterproto.message_field(11)
     full_image: "OcvMat" = betterproto.message_field(12)
