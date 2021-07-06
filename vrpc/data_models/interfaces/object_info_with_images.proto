@@ -15,12 +15,13 @@ message ListRect {
 }
 
 message ChannelDetails {
-    string my_id = 1;
+    string my_id = 1;    
     string engine_name = 2;
     string engine_type = 3;
     string channel_name = 4;
-    float latitude = 5;
-    float longitude = 6;
+    string camera_ip = 5;
+    float latitude = 6;
+    float longitude = 7;
 }
 
 message ObjectInfo {

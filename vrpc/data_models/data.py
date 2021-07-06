@@ -15,6 +15,15 @@ class OcvMat(betterproto.Message):
     mat_data_size: int = betterproto.int32_field(4)
     mat_data: bytes = betterproto.bytes_field(5)
 
+    __annotations__ = {
+        "rows": int,
+        "cols": int,
+        "mat_data_type": int,
+        "mat_data_size": int,
+        "mat_data": bytes,
+    }
+
+
 
 @dataclass
 class Rect(betterproto.Message):
@@ -23,10 +32,22 @@ class Rect(betterproto.Message):
     width: int = betterproto.int32_field(3)
     height: int = betterproto.int32_field(4)
 
+    __annotations__ = {
+        "left": int,
+        "top": int,
+        "width": int,
+        "height": int
+    }
+
+
 
 @dataclass
 class ListRect(betterproto.Message):
     rect: List["Rect"] = betterproto.message_field(1)
+
+    __annotations__ = {
+        "rect": List[Rect]
+    }
 
 
 @dataclass
@@ -35,8 +56,19 @@ class ChannelDetails(betterproto.Message):
     engine_name: str = betterproto.string_field(2)
     engine_type: str = betterproto.string_field(3)
     channel_name: str = betterproto.string_field(4)
-    latitude: float = betterproto.float_field(5)
-    longitude: float = betterproto.float_field(6)
+    camera_ip: str = betterproto.string_field(5)
+    latitude: float = betterproto.float_field(6)
+    longitude: float = betterproto.float_field(7)
+
+    __annotations__ = {
+        "my_id": str,
+        "engine_name": str,
+        "engine_type": str,
+        "channel_name": str,
+        "camera_ip": str,
+        "latitude": float,
+        "longitude": float
+    }
 
 
 @dataclass
@@ -53,3 +85,18 @@ class ObjectInfo(betterproto.Message):
     face_chip: "OcvMat" = betterproto.message_field(10)
     extended_face_chip: "OcvMat" = betterproto.message_field(11)
     full_image: "OcvMat" = betterproto.message_field(12)
+
+    __annotations__ = {
+        "message_id": int,
+        "face_rect": Rect,
+        "gender": str,
+        "race": str,
+        "capture_resolution": int,
+        "capture_time": float,
+        "auto_registration_tag": int,
+        "spoof_tag": bool,
+        "channel_details": ChannelDetails,
+        "face_chip": OcvMat,
+        "extended_face_chip": OcvMat,
+        "full_image": OcvMat
+    }
