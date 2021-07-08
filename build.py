@@ -443,16 +443,31 @@ def create_virtual_env():
         f.writelines(["*"])
     log(f"Create virtual environment {FLAGS.virtual_env_path}")
 
+def get_module_name() -> str:
+    glob_list = glob.glob(os.path.join(FLAGS.dist_dir, f"{FLAGS.module_name}*.whl"))
+    for name in glob_list:
+        log_verbose(name)
+        return name
+    return f"{FLAGS.module_name}.whl"
 
-def install_module_in_virtual_env():
+def install_requirements_in_virtual_env():
     pip_in_virtual_env = os.path.join(FLAGS.virtual_env_path, "bin/python")
-    runarguments = [pip_in_virtual_env, "-m", "pip", "install", os.path.join(FLAGS.cwd, "dist/vrpc-0.0.9-cp38-cp38-linux_x86_64.whl")]
+    runarguments = [pip_in_virtual_env, "-m", "pip", "install", "-r", os.path.join(FLAGS.cwd, "requirements.txt")]
     try:
         p = subprocess.Popen(runarguments, cwd=FLAGS.cwd)
         logging.info("Running pip")
-        time.sleep(10)
-        logging.info("Sending stop signal")
-        p.send_signal(signal.SIGTERM)
+        p.wait()
+        fail_if(p.returncode != 0, f"pip failed {p.returncode}")
+    except Exception:
+        logging.error(traceback.format_exc())
+        fail("pip failed")
+
+def install_module_in_virtual_env():
+    pip_in_virtual_env = os.path.join(FLAGS.virtual_env_path, "bin/python")
+    runarguments = [pip_in_virtual_env, "-m", "pip", "install", "--upgrade", "--no-deps", "--force-reinstall", get_module_name()]
+    try:
+        p = subprocess.Popen(runarguments, cwd=FLAGS.cwd)
+        logging.info("Running pip")
         p.wait()
         fail_if(p.returncode != 0, f"pip failed {p.returncode}")
     except Exception:
@@ -503,14 +518,15 @@ if __name__ == "__main__":
     # bump_to_version()
     # remove_session_dir()
     # remove_persistent_dir()
-    # generate_proto_code()
-    # do_sort_import()
-    # do_format_black()
-    # do_format_yapf()
-    # do_mypy_test()
+    generate_proto_code()
+    do_sort_import()
+    do_format_black()
+    do_format_yapf()
+    do_mypy_test()
+    do_cythonize()
+    log(get_module_name())
+    # remove_virtual_env()
     # create_virtual_env()
+    install_requirements_in_virtual_env()
     install_module_in_virtual_env()
-
-
-    # do_cythonize()
     # # run_module()

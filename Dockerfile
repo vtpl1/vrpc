@@ -26,9 +26,11 @@ RUN wget ${PB_REL}/download/v${PB_VER}/protoc-${PB_VER}-linux-x86_64.zip && \
 #     cd .. && rm protobuf-all-3.17.3.tar.gz && rm -rf protobuf-3.17.3
 
 #RUN pip install "betterproto[compiler]"
-RUN pip install git+https://github.com/vtpl1/python-betterproto.git
 RUN pip install ruamel.yaml
 RUN pip install opencv-python numpy
+#ARG CACHEBUST
+ADD "https://www.random.org/cgi-bin/randbyte?nbytes=10&format=h" skipcache
+RUN pip install git+https://github.com/vtpl1/python-betterproto.git
 
 #RUN pip install grpcio-tools
 
