@@ -7,6 +7,7 @@ import threading
 import cv2
 import numpy as np
 
+from .data_models.converter import get_mat_from_ocvmat
 from .fsb_queue import FsbQueueConsumer
 from .utils import get_folder, get_session_folder
 
@@ -28,7 +29,12 @@ class Consumer(threading.Thread):
             if ret is None:
                 continue
             channel_id, item = ret
-            # LOGGER.info(f"{channel_id} {item}")
+            LOGGER.info(f"{channel_id} {item.message_id}")
+            try:
+                face_chip_cv_mat = get_mat_from_ocvmat(item.face_chip)
+                extended_face_chip_cv_mat = get_mat_from_ocvmat(item.extended_face_chip)
+            except Exception as e:
+                pass
         self.__fsb_q.stop()
         LOGGER.info(f"End")
 

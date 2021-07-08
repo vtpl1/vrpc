@@ -8,14 +8,20 @@ import logging
 import os
 import pathlib
 import platform
+from posixpath import join
 import shutil
 import signal
 import subprocess
 import sys
 import time
 import traceback
+import venv
 import zipfile
 from distutils.dir_util import copy_tree
+from subprocess import PIPE, Popen
+from threading import Thread
+from urllib.parse import urlparse
+from urllib.request import urlretrieve
 
 
 def get_cwd() -> str:
@@ -73,7 +79,7 @@ def cpdir(src, dest):
 
 
 def get_version():
-    with open("vrpc/VERSION", "r") as vfile:
+    with open(os.path.join(FLAGS.base_dir, "VERSION"), "r") as vfile:
         FLAGS.version = vfile.readline().strip()
     log("version: {}".format(FLAGS.version))
 
@@ -81,11 +87,11 @@ def get_version():
 def reset_version():
     # Determine the versions from VERSION file.
     reset_version = "0.0.0"
-    filename = os.path.join(get_cwd(), "vrpc/VERSION")
+    filename = os.path.join(FLAGS.base_dir, "VERSION")
     with open(filename, "w") as vfile:
         vfile.writelines(f"{reset_version}")
     lines = []
-    filename = os.path.join(get_cwd(), ".bumpversion.cfg")
+    filename = os.path.join(FLAGS.cwd, ".bumpversion.cfg")
     with open(filename, "r") as vfile:
         lines = vfile.readlines()
     for i, line in enumerate(lines):
@@ -257,6 +263,7 @@ def do_format_yapf():
         "--recursive",
         FLAGS.base_dir,
     ]
+    log("Yapf formatting started")
     try:
         p = subprocess.Popen(runarguments, cwd=FLAGS.cwd)
         p.wait()
@@ -264,10 +271,11 @@ def do_format_yapf():
     except Exception:
         logging.error(traceback.format_exc())
         fail("do_format_yapf failed")
+    log("Yapf formatting completed")
 
 
 def run_module():
-    runarguments = [sys.executable, "-m", "vrpc"]
+    runarguments = [sys.executable, "-m", FLAGS.module_name]
     try:
         p = subprocess.Popen(runarguments, cwd=FLAGS.cwd)
         logging.info("Running module")
@@ -282,29 +290,175 @@ def run_module():
 
 
 def generate_proto_code1():
-    proto_interface_dir = "vrpc/data_models/interfaces"
-    out_folder = "vrpc/data_models"
+    proto_interface_dir = f"{FLAGS.base_dir}/data_models/interfaces"
+    out_folder = f"{FLAGS.base_dir}/data_models"
     proto_it = pathlib.Path().glob(proto_interface_dir + "/**/*")
     protos = [str(proto) for proto in proto_it if proto.is_file()]
     subprocess.check_call(["protoc"] + protos + ["--python_out", out_folder, "--proto_path", proto_interface_dir])
 
 
 def generate_proto_code():
-    proto_interface_dir = "vrpc/data_models/interfaces"
-    out_folder = "vrpc/data_models"
+    proto_interface_dir = f"{FLAGS.module_name}/data_models/interfaces"
+    out_folder = f"{FLAGS.module_name}/data_models"
     proto_it = pathlib.Path().glob(proto_interface_dir + "/**/*")
     protos = [str(proto) for proto in proto_it if proto.is_file()]
     subprocess.check_call(["protoc"] + protos +
                           ["--python_betterproto_out", out_folder, "--proto_path", proto_interface_dir])
 
 
-def generate_proto_code2():
-    proto_interface_dir = "vrpc/data_models/interfaces"
-    out_folder = "vrpc/data_models"
-    proto_it = pathlib.Path().glob(proto_interface_dir + "/**/*")
-    protos = [str(proto) for proto in proto_it if proto.is_file()]
-    subprocess.check_call(["python", "-m", "grpc.tools.protoc"] + protos +
-                          ["--python_betterproto_out", out_folder, "--proto_path", proto_interface_dir])
+class ExtendedEnvBuilder(venv.EnvBuilder):
+    """
+    This builder installs setuptools and pip so that you can pip or
+    easy_install other packages into the created virtual environment.
+
+    :param nodist: If true, setuptools and pip are not installed into the
+                   created virtual environment.
+    :param nopip: If true, pip is not installed into the created
+                  virtual environment.
+    :param progress: If setuptools or pip are installed, the progress of the
+                     installation can be monitored by passing a progress
+                     callable. If specified, it is called with two
+                     arguments: a string indicating some progress, and a
+                     context indicating where the string is coming from.
+                     The context argument can have one of three values:
+                     'main', indicating that it is called from virtualize()
+                     itself, and 'stdout' and 'stderr', which are obtained
+                     by reading lines from the output streams of a subprocess
+                     which is used to install the app.
+
+                     If a callable is not specified, default progress
+                     information is output to sys.stderr.
+    """
+    def __init__(self, *args, **kwargs):
+        self.nodist = kwargs.pop("nodist", False)
+        self.nopip = kwargs.pop("nopip", False)
+        self.progress = kwargs.pop("progress", None)
+        self.verbose = kwargs.pop("verbose", False)
+        super().__init__(*args, **kwargs)
+
+    def post_setup(self, context):
+        """
+        Set up any packages which need to be pre-installed into the
+        virtual environment being created.
+
+        :param context: The information for the virtual environment
+                        creation request being processed.
+        """
+        os.environ["VIRTUAL_ENV"] = context.env_dir
+        # if not self.nodist:
+        #     self.install_setuptools(context)
+        # Can't install pip without setuptools
+        if not self.nopip and not self.nodist:
+            self.install_pip(context)
+
+    def reader(self, stream, context):
+        """
+        Read lines from a subprocess' output stream and either pass to a progress
+        callable (if specified) or write progress information to sys.stderr.
+        """
+        progress = self.progress
+        while True:
+            s = stream.readline()
+            if not s:
+                break
+            if progress is not None:
+                progress(s, context)
+            else:
+                if not self.verbose:
+                    sys.stderr.write(".")
+                else:
+                    sys.stderr.write(s.decode("utf-8"))
+                sys.stderr.flush()
+        stream.close()
+
+    def install_script(self, context, name, url):
+        _, _, path, _, _, _ = urlparse(url)
+        fn = os.path.split(path)[-1]
+        binpath = context.bin_path
+        distpath = os.path.join(binpath, fn)
+        # Download script into the virtual environment's binaries folder
+        urlretrieve(url, distpath)
+        progress = self.progress
+        if self.verbose:
+            term = "\n"
+        else:
+            term = ""
+        if progress is not None:
+            progress("Installing %s ...%s" % (name, term), "main")
+        else:
+            sys.stderr.write("Installing %s ...%s" % (name, term))
+            sys.stderr.flush()
+        # Install in the virtual environment
+        args = [context.env_exe, fn]
+        p = Popen(args, stdout=PIPE, stderr=PIPE, cwd=binpath)
+        t1 = Thread(target=self.reader, args=(p.stdout, "stdout"))
+        t1.start()
+        t2 = Thread(target=self.reader, args=(p.stderr, "stderr"))
+        t2.start()
+        p.wait()
+        t1.join()
+        t2.join()
+        if progress is not None:
+            progress("done.", "main")
+        else:
+            sys.stderr.write("done.\n")
+        # Clean up - no longer needed
+        os.unlink(distpath)
+
+    def install_setuptools(self, context):
+        """
+        Install setuptools in the virtual environment.
+
+        :param context: The information for the virtual environment
+                        creation request being processed.
+        """
+        url = "https://bitbucket.org/pypa/setuptools/downloads/ez_setup.py"
+        self.install_script(context, "setuptools", url)
+        # clear up the setuptools archive which gets downloaded
+        pred = lambda o: o.startswith("setuptools-") and o.endswith(".tar.gz")
+        files = filter(pred, os.listdir(context.bin_path))
+        for f in files:
+            f = os.path.join(context.bin_path, f)
+            os.unlink(f)
+
+    def install_pip(self, context):
+        """
+        Install pip in the virtual environment.
+
+        :param context: The information for the virtual environment
+                        creation request being processed.
+        """
+        url = "https://bootstrap.pypa.io/get-pip.py"
+        self.install_script(context, "pip", url)
+
+
+def remove_virtual_env():
+    remove_file_or_dir(FLAGS.virtual_env_path, True)
+
+
+def create_virtual_env():
+    builder = ExtendedEnvBuilder()
+    builder.create(FLAGS.virtual_env_path)
+    with open(os.path.join(FLAGS.virtual_env_path, ".gitignore"), "w") as f:
+        f.writelines(["*"])
+    log(f"Create virtual environment {FLAGS.virtual_env_path}")
+
+
+def install_module_in_virtual_env():
+    pip_in_virtual_env = os.path.join(FLAGS.virtual_env_path, "bin/python")
+    runarguments = [pip_in_virtual_env, "-m", "pip", "install", os.path.join(FLAGS.cwd, "dist/vrpc-0.0.9-cp38-cp38-linux_x86_64.whl")]
+    try:
+        p = subprocess.Popen(runarguments, cwd=FLAGS.cwd)
+        logging.info("Running pip")
+        time.sleep(10)
+        logging.info("Sending stop signal")
+        p.send_signal(signal.SIGTERM)
+        p.wait()
+        fail_if(p.returncode != 0, f"pip failed {p.returncode}")
+    except Exception:
+        logging.error(traceback.format_exc())
+        fail("pip failed")
+
 
 
 if __name__ == "__main__":
@@ -335,21 +489,28 @@ if __name__ == "__main__":
     )
 
     FLAGS = parser.parse_args()
+    FLAGS.module_name = "vrpc"
     FLAGS.cwd = get_cwd()
+    FLAGS.virtual_env_path = os.path.join(FLAGS.cwd, "xx")
     FLAGS.dist_dir = os.path.join(get_cwd(), "dist")
-    FLAGS.base_dir = "vrpc"
+    FLAGS.base_dir = os.path.join(get_cwd(), FLAGS.module_name)
     FLAGS.session_dir = os.path.join(get_cwd(), "session")
     FLAGS.persistent_dir = os.path.join(get_cwd(), "persistent")
     print(sys.executable)
     # Determine the versions from VERSION file.
     get_version()
-    remove_session_dir()
-    remove_persistent_dir()
+    # reset_version()
+    # bump_to_version()
+    # remove_session_dir()
+    # remove_persistent_dir()
     # generate_proto_code()
     # do_sort_import()
     # do_format_black()
     # do_format_yapf()
     # do_mypy_test()
-    # bump_to_version()
-    do_cythonize()
-    # run_module()
+    # create_virtual_env()
+    install_module_in_virtual_env()
+
+
+    # do_cythonize()
+    # # run_module()

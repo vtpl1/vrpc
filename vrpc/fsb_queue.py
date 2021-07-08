@@ -16,6 +16,7 @@ from .utils import get_folder, get_int, get_session_folder
 
 
 def get_queue_base_folder() -> str:
+    # return "/session/"
     return get_session_folder()
 
 
@@ -174,9 +175,26 @@ class _FsbQueueConsumer:
             return True
         return False
 
+    def __is_next_file_exists(self, file_counter_current) -> bool:
+        for file in glob.glob(os.path.join(self.__q_folder, f"{self.__channel_id}_*{_QUEUE_EXTENSION}")):
+            file_counter_1 = get_int(ntpath.splitext(ntpath.basename(file))[0].split("_")[1])
+            if file_counter_1 > file_counter_current:
+                return True
+        return False
+
     def __delete(self):
-        os.remove(self.__file_name)
-        os.remove(self.__session_file_name)
+        try:
+            logging.info(f"Trying to delete {self.__file_name}")
+            os.remove(self.__file_name)
+            logging.info(f"deleted sucess {self.__file_name}")
+        except Exception as e:
+            logging.error(f"Unable to delete {self.__file_name}")
+        try:
+            logging.info(f"Trying to delete {self.__session_file_name}")
+            os.remove(self.__session_file_name)
+            logging.info(f"deleted sucess {self.__session_file_name}")
+        except Exception as e:
+            logging.error(f"Unable to delete {self.__session_file_name}")
 
     def __read_producer_seek_file(self) -> Tuple[int, int, int]:
         file_counter, message_counter, offset = 0, 0, 0
@@ -286,10 +304,11 @@ class _FsbQueueConsumer:
                 pass
 
             if self.__message_counter == message_counter:
-                producer_file_counter, _, _ = self.__read_producer_seek_file()
-                if producer_file_counter > self.__file_counter:
+                # producer_file_counter, _, _ = self.__read_producer_seek_file()
+                # if producer_file_counter > self.__file_counter:
+                if self.__is_next_file_exists(self.__file_counter):
                     logging.getLogger(self.name).info(
-                        f"File counter difference found hence resetting {self.__file_counter} {producer_file_counter}")
+                        f"File counter difference found hence resetting {self.__file_counter} {is_end_detected}")
                     is_end_detected = True
             else:
                 self.__message_counter = message_counter

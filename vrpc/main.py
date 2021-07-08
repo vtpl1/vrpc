@@ -72,21 +72,21 @@ def main():
         global is_shutdown
         parser = init_argparser()
         args = parser.parse_args()
-        o_consumer = Consumer(12)
+        o_consumer = Consumer(0)
         o_consumer.start()
 
-        o_producer1 = Producer("u_0", 12)
-        o_producer1.start()
-        o_producer2 = Producer("u_1", 12)
-        o_producer2.start()
+        # o_producer1 = Producer("18b170d3-27f1-4cc3-b0d1-b03cde5fe790", 0)
+        # o_producer1.start()
+        # o_producer2 = Producer("74a450fd-cc9a-47f5-ad89-3f5827cc116e", 0)
+        # o_producer2.start()
 
         while not is_shutdown.wait(10.0):
             continue
     except Exception as e:
         LOGGER.exception(f"Startup issue: {e}")
 
-    o_producer1.stop()
-    o_producer2.stop()
+    # o_producer1.stop()
+    # o_producer2.stop()
     o_consumer.stop()
     LOGGER.info("=============================================")
     LOGGER.info("    Shutdown complete {} {}               ".format(__name__, get_version()))
