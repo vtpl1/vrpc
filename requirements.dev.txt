@@ -1,3 +1,4 @@
+bandit
 black
 bump2version
 cmake

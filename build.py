@@ -274,21 +274,6 @@ def do_format_yapf():
     log("Yapf formatting completed")
 
 
-def run_module():
-    runarguments = [sys.executable, "-m", FLAGS.module_name]
-    try:
-        p = subprocess.Popen(runarguments, cwd=FLAGS.cwd)
-        logging.info("Running module")
-        time.sleep(10)
-        logging.info("Sending stop signal")
-        p.send_signal(signal.SIGTERM)
-        p.wait()
-        fail_if(p.returncode != 0, f"run_module failed {p.returncode}")
-    except Exception:
-        logging.error(traceback.format_exc())
-        fail("run_module failed")
-
-
 def generate_proto_code1():
     proto_interface_dir = f"{FLAGS.base_dir}/data_models/interfaces"
     out_folder = f"{FLAGS.base_dir}/data_models"
@@ -474,6 +459,20 @@ def install_module_in_virtual_env():
         logging.error(traceback.format_exc())
         fail("pip failed")
 
+def run_module_in_virtual_env():
+    module_in_virtual_env = os.path.join(FLAGS.virtual_env_path, "bin", FLAGS.module_name)
+    runarguments = [module_in_virtual_env]
+    try:
+        p = subprocess.Popen(runarguments, cwd=FLAGS.cwd)
+        logging.info("Running module")
+        time.sleep(10)
+        logging.info("Sending stop signal")
+        p.send_signal(signal.SIGTERM)
+        p.wait()
+        fail_if(p.returncode != 0, f"run_module failed {p.returncode}")
+    except Exception:
+        logging.error(traceback.format_exc())
+        fail("run_module failed")
 
 
 if __name__ == "__main__":
@@ -525,8 +524,8 @@ if __name__ == "__main__":
     do_mypy_test()
     do_cythonize()
     log(get_module_name())
-    # remove_virtual_env()
-    # create_virtual_env()
+    remove_virtual_env()
+    create_virtual_env()
     install_requirements_in_virtual_env()
     install_module_in_virtual_env()
-    # # run_module()
+    run_module_in_virtual_env()
