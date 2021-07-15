@@ -34,7 +34,7 @@ def get_folder_name(sub_folder: str) -> str:
 
 
 def get_folder(sub_folder: str) -> str:
-    session_folder = get_folder_name()
+    session_folder = get_folder_name(sub_folder)
     if not os.path.exists(session_folder):
         try:
             os.makedirs(session_folder)
