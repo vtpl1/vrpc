@@ -132,4 +132,5 @@ dmypy.json
 
 session/
 proto_dump/
+protoc/
 protobuf-3.17.3/

@@ -22,6 +22,20 @@ from subprocess import PIPE, Popen
 from threading import Thread
 from urllib.parse import urlparse
 from urllib.request import urlretrieve
+from dataclasses import dataclass
+
+@dataclass
+class Flags:
+    module_name :str
+    cwd: str = ""
+    virtual_env_path: str = ""
+    dist_dir: str = ""
+    base_dir: str = ""
+    session_dir: str = ""
+    persistent_dir: str = ""
+    quiet: bool = True
+    verbose: bool = True
+    target_platform: str = None
 
 
 def get_cwd() -> str:
@@ -31,7 +45,7 @@ def get_cwd() -> str:
     return cwd
 
 
-FLAGS = None
+FLAGS = Flags(module_name="vrpc")
 
 
 def log(msg, force=False):
@@ -52,9 +66,9 @@ def fail(msg):
 
 
 def target_platform():
-    if FLAGS.target_platform is not None:
-        return FLAGS.target_platform
-    return platform.system().lower()
+    if FLAGS.target_platform is None:
+        FLAGS.target_platform = platform.system().lower()
+    return FLAGS.target_platform
 
 
 def fail_if(p, msg):
@@ -162,6 +176,8 @@ def clean_cythonize():
     remove_file_or_dir(f"{FLAGS.base_dir}.egg-info")
     remove_file_or_dir(f"{FLAGS.base_dir}/**/*.c", recursive=True)
     remove_file_or_dir(f"{FLAGS.base_dir}/**/*.o", recursive=True)
+    if target_platform() == "windows":
+        remove_file_or_dir(f"{FLAGS.base_dir}/**/*.pyd", recursive=True)
     # remove_file_or_dir(f'{FLAGS.base_dir}/**/*.so', recursive=True)
 
     # rm -rf *.egg-info
@@ -274,22 +290,33 @@ def do_format_yapf():
     log("Yapf formatting completed")
 
 
-def generate_proto_code1():
-    proto_interface_dir = f"{FLAGS.base_dir}/data_models/interfaces"
-    out_folder = f"{FLAGS.base_dir}/data_models"
-    proto_it = pathlib.Path().glob(proto_interface_dir + "/**/*")
-    protos = [str(proto) for proto in proto_it if proto.is_file()]
-    subprocess.check_call(["protoc"] + protos + ["--python_out", out_folder, "--proto_path", proto_interface_dir])
-
-
 def generate_proto_code():
     proto_interface_dir = f"{FLAGS.module_name}/data_models/interfaces"
     out_folder = f"{FLAGS.module_name}/data_models"
     proto_it = pathlib.Path().glob(proto_interface_dir + "/**/*")
     protos = [str(proto) for proto in proto_it if proto.is_file()]
-    subprocess.check_call(["protoc"] + protos +
-                          ["--python_betterproto_out", out_folder, "--proto_path", proto_interface_dir])
+    protoc_exe = "protoc"
+    if target_platform() == "windows":
+        protoc_exe = "protoc/bin/protoc.exe"
+    l = [protoc_exe] + protos + ["--python_betterproto_out", out_folder, "--proto_path", proto_interface_dir]
+    str1 = ' '.join(l)
+    log(f"Executing command: {str1}")
 
+    subprocess.check_call(l)
+
+def generate_proto_cpp_code():
+    proto_interface_dir = f"{FLAGS.module_name}/data_models/interfaces"
+    out_folder = f"{FLAGS.module_name}/data_models_cpp"
+    proto_it = pathlib.Path().glob(proto_interface_dir + "/**/*")
+    protos = [str(proto) for proto in proto_it if proto.is_file()]
+    protoc_exe = "protoc"
+    if target_platform() == "windows":
+        protoc_exe = "protoc/bin/protoc.exe"
+    l = [protoc_exe] + protos + ["--cpp_out", out_folder, "--proto_path", proto_interface_dir]
+    str1 = ' '.join(l)
+    log(f"Executing command: {str1}")
+
+    subprocess.check_call(l)
 
 class ExtendedEnvBuilder(venv.EnvBuilder):
     """
@@ -436,7 +463,10 @@ def get_module_name() -> str:
     return f"{FLAGS.module_name}.whl"
 
 def install_requirements_in_virtual_env():
-    pip_in_virtual_env = os.path.join(FLAGS.virtual_env_path, "bin/python")
+    if target_platform() == "windows":
+        pip_in_virtual_env = os.path.join(FLAGS.virtual_env_path, "Scripts", "python.exe")
+    else:
+        pip_in_virtual_env = os.path.join(FLAGS.virtual_env_path, "bin", "python")
     runarguments = [pip_in_virtual_env, "-m", "pip", "install", "-r", os.path.join(FLAGS.cwd, "requirements.txt")]
     try:
         p = subprocess.Popen(runarguments, cwd=FLAGS.cwd)
@@ -448,7 +478,10 @@ def install_requirements_in_virtual_env():
         fail("pip failed")
 
 def install_module_in_virtual_env():
-    pip_in_virtual_env = os.path.join(FLAGS.virtual_env_path, "bin/python")
+    if target_platform() == "windows":
+        pip_in_virtual_env = os.path.join(FLAGS.virtual_env_path, "Scripts", "python.exe")
+    else:
+        pip_in_virtual_env = os.path.join(FLAGS.virtual_env_path, "bin", "python")
     runarguments = [pip_in_virtual_env, "-m", "pip", "install", "--upgrade", "--no-deps", "--force-reinstall", get_module_name()]
     try:
         p = subprocess.Popen(runarguments, cwd=FLAGS.cwd)
@@ -460,7 +493,10 @@ def install_module_in_virtual_env():
         fail("pip failed")
 
 def run_module_in_virtual_env():
-    module_in_virtual_env = os.path.join(FLAGS.virtual_env_path, "bin", FLAGS.module_name)
+    if target_platform() == "windows":
+        module_in_virtual_env = os.path.join(FLAGS.virtual_env_path, "Scripts", f"{FLAGS.module_name}.exe")
+    else:
+        module_in_virtual_env = os.path.join(FLAGS.virtual_env_path, "bin", f"{FLAGS.module_name}")
     runarguments = [module_in_virtual_env]
     try:
         p = subprocess.Popen(runarguments, cwd=FLAGS.cwd)
@@ -501,9 +537,15 @@ if __name__ == "__main__":
         required=False,
         help="Enable statistics collection.",
     )
-
-    FLAGS = parser.parse_args()
-    FLAGS.module_name = "vrpc"
+    F = parser.parse_args()
+    if F.quiet is not None:
+        if F.quiet == False:
+            FLAGS.quiet = False
+    if F.verbose is not None:
+        if F.verbose == True:
+            FLAGS.verbose = True
+    # FLAGS = parser.parse_args()
+    # FLAGS.module_name = "vrpc"
     FLAGS.cwd = get_cwd()
     FLAGS.virtual_env_path = os.path.join(FLAGS.cwd, "xx")
     FLAGS.dist_dir = os.path.join(get_cwd(), "dist")
@@ -512,20 +554,20 @@ if __name__ == "__main__":
     FLAGS.persistent_dir = os.path.join(get_cwd(), "persistent")
     print(sys.executable)
     # Determine the versions from VERSION file.
-    get_version()
-    # reset_version()
+    # get_version()
+    # # reset_version()
     # bump_to_version()
     # remove_session_dir()
     # remove_persistent_dir()
     generate_proto_code()
-    do_sort_import()
-    do_format_black()
-    do_format_yapf()
-    do_mypy_test()
-    do_cythonize()
-    log(get_module_name())
-    remove_virtual_env()
-    create_virtual_env()
-    install_requirements_in_virtual_env()
-    install_module_in_virtual_env()
-    run_module_in_virtual_env()
+    # generate_proto_cpp_code()
+    # do_sort_import()
+    # do_format_black()
+    # do_format_yapf()
+    # do_mypy_test()
+    # do_cythonize()
+    # remove_virtual_env()
+    # create_virtual_env()
+    # install_requirements_in_virtual_env()
+    # install_module_in_virtual_env()
+    # run_module_in_virtual_env()

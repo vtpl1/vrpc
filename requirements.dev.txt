@@ -17,3 +17,4 @@ pycln
 pytest-monitor
 Cython
 click
+git+https://github.com/vtpl1/python-betterproto.git
