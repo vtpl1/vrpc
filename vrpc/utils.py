@@ -1,11 +1,8 @@
-import logging
 import os
 import threading
 import time
 import uuid
-from typing import Any, Union
-
-LOGGER = logging.getLogger(__name__)
+from typing import Any
 
 
 def ignore_exception(IgnoreException=Exception, DefaultVal=None):
@@ -31,48 +28,6 @@ get_int = ignore_exception(ValueError, 0)(int)
 def get_folder_name(sub_folder: str) -> str:
     session_folder = os.path.join(os.getcwd(), sub_folder)
     return session_folder + os.path.sep
-
-
-def get_folder(sub_folder: str) -> str:
-    session_folder = get_folder_name(sub_folder)
-    if not os.path.exists(session_folder):
-        try:
-            os.makedirs(session_folder)
-            LOGGER.info(f"{sub_folder} folder created in {session_folder}")
-        except OSError as e:
-            LOGGER.error(e)
-            # raise
-    return session_folder
-
-
-def get_queue_base_folder():
-    return get_folder_name("session")
-    #return "/session/"
-
-
-def get_str_id(id: Union[int, str]) -> str:
-    remove_characters = ["_", ".", "/", "\\", ",", ":", ";"]
-    for r in remove_characters:
-        id = id.replace(r, "-")
-
-    if isinstance(id, int):
-        return f"{id:05d}"
-    elif isinstance(id, str):
-        pass
-
-    return id
-
-
-def get_q_id(queue_id: Union[int, str]) -> str:
-    return get_str_id(queue_id)
-
-
-def get_channel_id(queue_id: Union[int, str]) -> str:
-    return get_str_id(queue_id)
-
-
-def get_q_folder(queue_id: str) -> str:
-    return os.path.join(get_queue_base_folder(), queue_id)
 
 
 def get_folder(sub_folder: str) -> str:
