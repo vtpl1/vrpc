@@ -14,6 +14,14 @@ COPY requirements.dev.txt /tmp/pip-tmp/
 RUN pip install --no-cache-dir -r /tmp/pip-tmp/requirements.dev.txt \
     && rm -rf /tmp/pip-tmp
 
+RUN git clone -b poco-serial-1.11.0-release https://github.com/vtpl1/poco.git \
+    && cd poco && mkdir cmake-build && cd cmake-build && cmake -DBUILD_SHARED_LIBS=NO .. && cmake --build . --config Release --target install \
+    && cd ../.. && rm -rf poco
+
+RUN git clone -b 1.1.5 https://github.com/nanomsg/nanomsg.git \
+    && cd nanomsg && mkdir cmake-build && cd cmake-build && cmake -DNN_STATIC_LIB=ON .. && cmake --build . --config Release --target install \
+    && cd ../.. && rm -rf nanomsg && ldconfig
+
 ARG PB_REL="https://github.com/protocolbuffers/protobuf/releases"
 ARG PB_VER="3.17.3"
 RUN wget ${PB_REL}/download/v${PB_VER}/protoc-${PB_VER}-linux-x86_64.zip && \
@@ -27,9 +35,9 @@ RUN wget ${PB_REL}/download/v${PB_VER}/protoc-${PB_VER}-linux-x86_64.zip && \
 
 #RUN pip install "betterproto[compiler]"
 RUN pip install ruamel.yaml
-RUN pip install opencv-python numpy
+#RUN pip install opencv-python numpy
 #ARG CACHEBUST
-ADD "https://www.random.org/cgi-bin/randbyte?nbytes=10&format=h" skipcache
+#ADD "https://www.random.org/cgi-bin/randbyte?nbytes=10&format=h" skipcache
 RUN pip install git+https://github.com/vtpl1/python-betterproto.git
 
 #RUN pip install grpcio-tools
